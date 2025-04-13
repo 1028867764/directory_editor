@@ -223,11 +223,24 @@ class _DirectoryEditorScreenState extends State<DirectoryEditorScreen> {
   }
 
   Widget _buildDirectoryList() {
-    return ListView.builder(
-      itemCount: directoryItems.length,
-      itemBuilder: (context, index) {
-        return _buildDirectoryItem(directoryItems[index]);
-      },
+    final screenWidth = MediaQuery.of(context).size.width;
+    final contentWidth = screenWidth * 1.5; // 比屏幕宽一半
+
+    return Scrollbar(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal, // 允许水平滚动
+        child: SizedBox(
+          width: contentWidth, // 设置内容宽度
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const ClampingScrollPhysics(), // 防止滚动冲突
+            itemCount: directoryItems.length,
+            itemBuilder: (context, index) {
+              return _buildDirectoryItem(directoryItems[index]);
+            },
+          ),
+        ),
+      ),
     );
   }
 
@@ -237,12 +250,21 @@ class _DirectoryEditorScreenState extends State<DirectoryEditorScreen> {
         ListTile(
           contentPadding: EdgeInsets.symmetric(vertical: 0.0),
           dense: true, // 添加这行使列表更紧凑
-          leading: IconButton(
-            icon: Icon(
-              item.isExpanded ? Icons.expand_less : Icons.expand_more,
-              size: 12.0, // 调整图标大小
-            ),
-            onPressed: () => _toggleExpand(item),
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.add, size: 12.0), // 调整图标大小
+                onPressed: () => _addItem(item),
+              ),
+              IconButton(
+                icon: Icon(
+                  item.isExpanded ? Icons.expand_less : Icons.expand_more,
+                  size: 15.0, // 调整图标大小
+                ),
+                onPressed: () => _toggleExpand(item),
+              ),
+            ],
           ),
           title: TextField(
             style: TextStyle(fontSize: 12.0), // 设置文本大小
@@ -259,10 +281,6 @@ class _DirectoryEditorScreenState extends State<DirectoryEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: Icon(Icons.add, size: 12.0), // 调整图标大小
-                onPressed: () => _addItem(item),
-              ),
-              IconButton(
                 icon: Icon(Icons.delete, size: 12.0), // 调整图标大小
                 onPressed: () => _deleteItem(item),
               ),
@@ -276,7 +294,7 @@ class _DirectoryEditorScreenState extends State<DirectoryEditorScreen> {
               .toList()
               .map(
                 (childWidget) => Padding(
-                  padding: const EdgeInsets.only(left: 12.0),
+                  padding: const EdgeInsets.only(left: 18.0),
                   child: childWidget,
                 ),
               ),
@@ -443,23 +461,45 @@ class _DirectoryEditorScreenState extends State<DirectoryEditorScreen> {
     }
   }
 
+  // 修改你的 _importDirectory 方法，使用 SAF 选择文件
   Future<void> _importDirectory() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any, // 允许选择任何类型文件
+        allowMultiple: false,
       );
 
       if (result != null) {
-        final file = File(result.files.single.path!);
-        final content = await file.readAsString();
+        PlatformFile file = result.files.first;
+
+        // 优先使用文件的字节数据
+        String content;
+        if (file.bytes != null) {
+          content = String.fromCharCodes(file.bytes!);
+        }
+        // 次选：尝试使用路径
+        else if (file.path != null) {
+          content = await File(file.path!).readAsString();
+        } else {
+          throw Exception("无法获取文件内容");
+        }
+
+        // 解析JSON数据
         final List<dynamic> jsonList = jsonDecode(content);
 
+        // 清除现有控制器
+        for (var item in directoryItems) {
+          _disposeItemControllers(item);
+        }
+
+        // 更新UI状态
         setState(() {
           directoryItems =
               jsonList.map((json) => DirectoryItem.fromJson(json)).toList();
-          _saveDirectoryItems(); // 添加这行以保存变更
         });
+
+        // 保存数据
+        await _saveDirectoryItems();
 
         ScaffoldMessenger.of(
           context,
@@ -469,6 +509,7 @@ class _DirectoryEditorScreenState extends State<DirectoryEditorScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('导入失败: $e')));
+      print("导入错误详情: $e");
     }
   }
 }
