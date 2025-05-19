@@ -41,7 +41,7 @@ def save_json(data, file_path):
 
 
 # 主程序
-xml_path = Path(r"C:\Users\dell\directory_editor\XMLtoJson\微观密码.xml")
+xml_path = Path(r"C:\Users\dell\directory_editor\XMLtoJson\【书签】必修-250519.xml")
 if not xml_path.exists():
     print(f"错误：文件 {xml_path} 不存在！")
 else:
