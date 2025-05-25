@@ -1,515 +1,648 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:share_plus/share_plus.dart'; // 导入分享插件
 import 'package:intl/intl.dart';
+import 'industry_app.dart';
+import 'data/organisms_data.dart';
+import 'data/industry_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'upload_page.dart';
 
+//B站粉红
+const Color kBilibiliPink = Color(0xFFFB7299);
+// 防抖
+final String requestTimeStamp =
+    '?timestamp=${DateTime.now().millisecondsSinceEpoch}';
 void main() {
-  runApp(const DirectoryEditorApp());
+  runApp(const MyApp());
 }
 
-class DirectoryItem {
-  String id;
-  String title;
-  int level;
-  bool isExpanded;
-  List<DirectoryItem> children;
-  TextEditingController controller; // 新增控制器
-
-  DirectoryItem({
-    required this.id,
-    required this.title,
-    this.level = 0,
-    this.isExpanded = false,
-    this.children = const [],
-  }) : controller = TextEditingController(text: title); // 初始化控制器
-
-  DirectoryItem copyWith({
-    String? id,
-    String? title,
-    int? level,
-    bool? isExpanded,
-    List<DirectoryItem>? children,
-  }) {
-    return DirectoryItem(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      level: level ?? this.level,
-      isExpanded: isExpanded ?? this.isExpanded,
-      children: children ?? this.children,
-    )..controller.text = title ?? this.title; // ✅ 确保 controller 同步更新
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id, // 添加 id 字段
-      'title': title,
-      'level': level,
-      'children': children.map((child) => child.toJson()).toList(),
-    };
-  }
-
-  factory DirectoryItem.fromJson(Map<String, dynamic> json) {
-    return DirectoryItem(
-      id:
-          json['id'] ??
-          DateTime.now().millisecondsSinceEpoch.toString(), // 优先使用原有ID
-      title: json['title'],
-      level: json['level'],
-      isExpanded: false, // 默认不展开
-      children:
-          (json['children'] as List?)
-              ?.map((childJson) => DirectoryItem.fromJson(childJson))
-              .toList() ??
-          [],
-    );
-  }
-  // 在dispose时释放控制器（重要！）
-  void dispose() {
-    controller.dispose();
-  }
-}
-
-class DirectoryEditorApp extends StatelessWidget {
-  const DirectoryEditorApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '多级目录编辑器',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const DirectoryEditorScreen(),
+      title: '上传器',
+      theme: ThemeData(
+        appBarTheme: AppBarTheme(
+          titleTextStyle: TextStyle(
+            fontSize: 16, // 全局设置标题字号
+            color: Colors.black, // 全局设置标题字体颜色
+          ),
+        ),
+        fontFamily: 'Roboto',
+        primarySwatch: Colors.blue,
+      ), // 设置默认字体
+      home: const MainHomePage(),
     );
   }
 }
 
-class DirectoryEditorScreen extends StatefulWidget {
-  const DirectoryEditorScreen({super.key});
+class MainHomePage extends StatelessWidget {
+  const MainHomePage({super.key});
 
   @override
-  _DirectoryEditorScreenState createState() => _DirectoryEditorScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+
+      body: Center(
+        child: GridView.count(
+          shrinkWrap: true,
+          crossAxisCount: 2, // 两列
+          mainAxisSpacing: 20, // 垂直间距
+          crossAxisSpacing: 20, // 水平间距
+          padding: const EdgeInsets.all(20), // 整体边距
+          children: [
+            _buildImageButton(
+              context,
+              'assets/images/biology_bg.png',
+              '生物篇',
+              () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder:
+                        (context, animation, secondaryAnimation) =>
+                            const BiologyApp(),
+                    transitionsBuilder: (
+                      context,
+                      animation,
+                      secondaryAnimation,
+                      child,
+                    ) {
+                      const begin = Offset(1.0, 0.0);
+                      const end = Offset.zero;
+                      const curve = Curves.ease;
+                      var tween = Tween(
+                        begin: begin,
+                        end: end,
+                      ).chain(CurveTween(curve: curve));
+                      var offsetAnimation = animation.drive(tween);
+                      return SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+            _buildImageButton(
+              context,
+              'assets/images/industry_bg.png',
+              '工业篇',
+              () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder:
+                        (context, animation, secondaryAnimation) =>
+                            const IndustryApp(),
+                    transitionsBuilder: (
+                      context,
+                      animation,
+                      secondaryAnimation,
+                      child,
+                    ) {
+                      const begin = Offset(1.0, 0.0);
+                      const end = Offset.zero;
+                      const curve = Curves.ease;
+                      var tween = Tween(
+                        begin: begin,
+                        end: end,
+                      ).chain(CurveTween(curve: curve));
+                      var offsetAnimation = animation.drive(tween);
+                      return SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+            _buildImageButton(
+              context,
+              'assets/images/luxury_bg.webp',
+              '土豪篇',
+              () {},
+            ),
+            _buildImageButton(
+              context,
+              'assets/images/favorite_bg.png',
+              '收藏夹',
+              () {},
+            ),
+            _buildImageButton(
+              context,
+              'assets/images/star_bg.png',
+              '星空篇',
+              () {},
+            ),
+            _buildImageButton(
+              context,
+              'assets/images/clinic_bg.png',
+              '临床篇',
+              () {},
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageButton(
+    BuildContext context,
+    String imagePath,
+    String text,
+    VoidCallback onPressed,
+  ) {
+    return SizedBox(
+      width: 100,
+      height: 100,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: const CircleBorder(),
+        ),
+        child: ClipOval(
+          child: Stack(
+            children: [
+              Image.asset(
+                imagePath,
+                width: 600,
+                height: 600,
+                fit: BoxFit.cover,
+              ),
+              Center(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black,
+                        blurRadius: 6,
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _DirectoryEditorScreenState extends State<DirectoryEditorScreen> {
-  List<DirectoryItem> directoryItems = [];
-  bool _isLoading = true; // 添加加载状态变量
+class CategoryMenu extends StatelessWidget {
+  final List<Category> categories;
+  final int currentIndex;
+  final Function(int) onCategorySelected;
+  final bool isPinkTheme; // 新增参数
 
-  Future<void> _loadDirectoryItems() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/directory_data.json');
-
-      if (await file.exists()) {
-        final content = await file.readAsString();
-        final List<dynamic> jsonList = jsonDecode(content);
-        setState(() {
-          directoryItems =
-              jsonList.map((json) => DirectoryItem.fromJson(json)).toList();
-          _isLoading = false;
-        });
-      } else {
-        // 如果文件不存在，使用默认数据
-        setState(() {
-          directoryItems = [
-            DirectoryItem(id: '1', title: '根目录1'),
-            DirectoryItem(id: '2', title: '根目录2'),
-          ];
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('加载数据失败: $e');
-      setState(() {
-        directoryItems = [
-          DirectoryItem(id: '1', title: '根目录1'),
-          DirectoryItem(id: '2', title: '根目录2'),
-        ];
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveDirectoryItems() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/directory_data.json');
-      final content = jsonEncode(
-        directoryItems.map((item) => item.toJson()).toList(),
-      );
-      await file.writeAsString(content);
-    } catch (e) {
-      print('保存数据失败: $e');
-    }
-  }
+  const CategoryMenu({
+    super.key,
+    required this.categories,
+    required this.currentIndex,
+    required this.onCategorySelected,
+    required this.isPinkTheme, // 接收主题状态
+  });
 
   @override
-  void initState() {
-    super.initState();
-    _loadDirectoryItems(); // 添加初始化加载数据
+  Widget build(BuildContext context) {
+    return Container(
+      width: 100,
+      color: Colors.grey[200],
+      child: ListView.builder(
+        itemCount: categories.length,
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onTap: () => onCategorySelected(index),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              color: index == currentIndex ? Colors.white : Colors.grey[200],
+              margin: const EdgeInsets.only(bottom: 2),
+              alignment: Alignment.center,
+              child: Text(
+                categories[index].id,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight:
+                      index == currentIndex
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                  color:
+                      index == currentIndex
+                          ? (isPinkTheme
+                              ? kBilibiliPink
+                              : Colors.blue) // 根据主题切换颜色
+                          : null,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
+}
+
+class ProductGrid extends StatelessWidget {
+  final Category category;
+  final Function(Product) onProductSelected;
+  final bool isPinkTheme; // 新增参数
+
+  const ProductGrid({
+    super.key,
+    required this.category,
+    required this.onProductSelected,
+    required this.isPinkTheme, // 接收主题状态
+  });
 
   @override
-  void dispose() {
-    // 释放所有控制器
-    for (var item in directoryItems) {
-      _disposeItemControllers(item);
-    }
-    super.dispose();
+  Widget build(BuildContext context) {
+    bool isSingleGroup = category.parentProductGroups.length == 1;
+    int groupCount = category.parentProductGroups.length;
+
+    return ListView.builder(
+      itemCount: groupCount * 2 - 1,
+      itemBuilder: (context, index) {
+        if (index.isOdd) {
+          return const SizedBox(height: 0);
+        }
+
+        final groupIndex = index ~/ 2;
+        final group = category.parentProductGroups[groupIndex];
+        final isFirstGroup = groupIndex == 0;
+        final isLastGroup = groupIndex == groupCount - 1;
+
+        // 当有多个组时，包装整个组
+        if (!isSingleGroup) {
+          return _buildGroupContent(
+            group,
+            isSingleGroup,
+            groupIndex,
+            isLastGroup,
+          );
+        } else {
+          // 单个组时直接返回内容
+          return _buildGroupContent(
+            group,
+            isSingleGroup,
+            groupIndex,
+            isLastGroup,
+          );
+        }
+      },
+    );
   }
 
-  void _disposeItemControllers(DirectoryItem item) {
-    item.dispose();
-    for (var child in item.children) {
-      _disposeItemControllers(child);
-    }
-  }
-
-  void _updateItem(DirectoryItem oldItem, DirectoryItem newItem) {
-    setState(() {
-      _updateItemInList(directoryItems, oldItem, newItem);
-      _saveDirectoryItems(); // 添加这行以保存变更
-    });
-  }
-
-  bool _updateItemInList(
-    List<DirectoryItem> items,
-    DirectoryItem oldItem,
-    DirectoryItem newItem,
+  Widget _buildGroupContent(
+    ParentProductGroup group,
+    bool isSingleGroup,
+    int groupIndex,
+    bool isLastGroup,
   ) {
-    for (int i = 0; i < items.length; i++) {
-      if (items[i].id == oldItem.id) {
-        items[i] = newItem;
-        return true;
+    int parentProductCount = group.parentProducts.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        // 当有多个组时，在第一个组上方添加 SizedBox
+        if (!isSingleGroup && groupIndex == 0) SizedBox(height: 10),
+        if (!isSingleGroup && group.id.isNotEmpty) Container(),
+        ...group.parentProducts.map((parentProduct) {
+          final isLastParentProduct =
+              group.parentProducts.indexOf(parentProduct) ==
+              parentProductCount - 1;
+
+          return Container(
+            margin: EdgeInsets.only(
+              top: isSingleGroup ? (groupIndex == 0 ? 10 : 0) : 0,
+              left: isSingleGroup ? 10 : 10,
+              right: isSingleGroup ? 10 : 10,
+              bottom: isSingleGroup ? (isLastParentProduct ? 10 : 0) : 10,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors:
+                    isPinkTheme
+                        ? [
+                          Colors.pink.shade100,
+                          Colors.pink.shade50,
+                          //     Colors.red.shade50,
+                        ]
+                        : [
+                          Colors.blue.shade100,
+                          Colors.blue.shade50,
+                          //         Colors.green.shade50,
+                        ], // 切换背景色
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius:
+                  isSingleGroup
+                      ? BorderRadius.circular(12)
+                      : BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 添加标签显示 ParentProductGroup 名称
+                      if (!isSingleGroup)
+                        Align(
+                          alignment: Alignment.topLeft, // 强制左对齐父容器
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  isPinkTheme
+                                      ? kBilibiliPink
+                                      : Colors.blue[300], // 切换标签背景色
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                topRight: Radius.circular(0),
+                                bottomLeft: Radius.circular(0),
+                                bottomRight: Radius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              group.id, // 显示 ParentProductGroup 名称
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (isSingleGroup)
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            return Container(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: IntrinsicWidth(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                      horizontal: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          isPinkTheme
+                                              ? kBilibiliPink
+                                              : Colors.blue[300], // 切换标签背景色
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(12),
+                                        topRight: Radius.circular(0),
+                                        bottomLeft: Radius.circular(0),
+                                        bottomRight: Radius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      parentProduct.id,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        fontStyle: FontStyle.italic,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      if (isSingleGroup)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 0,
+                            horizontal: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            parentProduct.name[0],
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      if (!isSingleGroup)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 0,
+                            horizontal: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            parentProduct.id,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      if (!isSingleGroup)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 0,
+                            horizontal: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            parentProduct.name[0],
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 1.0,
+                    crossAxisSpacing: 2,
+                    mainAxisSpacing: 10,
+                  ),
+                  padding: const EdgeInsets.only(
+                    top: 0,
+                    bottom: 10,
+                    left: 10,
+                    right: 10,
+                  ),
+                  itemCount: parentProduct.childProducts.length,
+                  itemBuilder: (context, index) {
+                    final product = parentProduct.childProducts[index];
+                    return GestureDetector(
+                      onTap: () => onProductSelected(product),
+                      child: Card(
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Container(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                product.name[0],
+                                style: const TextStyle(fontSize: 11),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+}
+
+class BiologyApp extends StatefulWidget {
+  const BiologyApp({super.key});
+
+  @override
+  State<BiologyApp> createState() => _BiologyAppState();
+}
+
+class _BiologyAppState extends State<BiologyApp> {
+  int currentCategoryIndex = 0;
+  bool _isLoading = false;
+  bool _isPinkTheme = false; // 新增状态变量，控制是否使用橙色主题
+
+  void selectCategory(int index) {
+    setState(() {
+      _isLoading = true;
+      currentCategoryIndex = index;
+      _isPinkTheme = !_isPinkTheme; // 切换主题颜色
+    });
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
-      if (_updateItemInList(items[i].children, oldItem, newItem)) {
-        return true;
-      }
-    }
-    return false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(25.0), // 自定义高度
-        child: AppBar(
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.add, size: 15.0),
-              onPressed: () => _addItem(null),
-            ),
-            IconButton(
-              icon: const Icon(Icons.import_export, size: 15.0),
-              onPressed: _showImportExportMenu,
+      appBar: AppBar(
+        title: const Text('生物篇', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.grey[200],
+        foregroundColor: Colors.black,
+        centerTitle: true,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            const SizedBox(width: 10),
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () => Navigator.pop(context),
+                child: const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Icon(Icons.arrow_back),
+                ),
+              ),
             ),
           ],
         ),
       ),
-      body: _buildDirectoryList(),
-      floatingActionButton: Visibility(
-        visible: false, // 隐藏按钮
-        child: FloatingActionButton(
-          backgroundColor: Colors.blue.withOpacity(0.3),
-          onPressed: () => _addItem(null),
-          tooltip: '添加根目录项',
-          child: const Icon(Icons.add),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDirectoryList() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final contentWidth = screenWidth * 1.5; // 比屏幕宽一半
-
-    return Scrollbar(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal, // 允许水平滚动
-        child: SizedBox(
-          width: contentWidth, // 设置内容宽度
-          child: ListView.builder(
-            shrinkWrap: true,
-            physics: const ClampingScrollPhysics(), // 防止滚动冲突
-            itemCount: directoryItems.length,
-            itemBuilder: (context, index) {
-              return _buildDirectoryItem(directoryItems[index]);
-            },
+      body: Row(
+        children: [
+          CategoryMenu(
+            categories: organisms,
+            currentIndex: currentCategoryIndex,
+            onCategorySelected: selectCategory,
+            isPinkTheme: _isPinkTheme, // 传递主题状态
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDirectoryItem(DirectoryItem item) {
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.symmetric(vertical: 0.0),
-          dense: true, // 添加这行使列表更紧凑
-          leading: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(Icons.add, size: 12.0), // 调整图标大小
-                onPressed: () => _addItem(item),
-              ),
-              IconButton(
-                icon: Icon(
-                  item.isExpanded ? Icons.expand_less : Icons.expand_more,
-                  size: 15.0, // 调整图标大小
-                ),
-                onPressed: () => _toggleExpand(item),
-              ),
-            ],
-          ),
-          title: TextField(
-            style: TextStyle(fontSize: 12.0), // 设置文本大小
-            controller: item.controller, // 绑定控制器
-            onChanged: (value) => _updateTitle(item, value),
-            decoration: InputDecoration(
-              hintText: '输入目录名称',
-              hintStyle: TextStyle(fontSize: 12.0), // 提示文本大小
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.only(left: 0.0),
+          Expanded(
+            child: Container(
+              color: Colors.white,
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : ProductGrid(
+                        category: organisms[currentCategoryIndex],
+                        onProductSelected: (product) {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      UploadPage(product: product),
+                              transitionsBuilder: (
+                                context,
+                                animation,
+                                secondaryAnimation,
+                                child,
+                              ) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.ease;
+                                var tween = Tween(
+                                  begin: begin,
+                                  end: end,
+                                ).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+                                return SlideTransition(
+                                  position: offsetAnimation,
+                                  child: child,
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        isPinkTheme: _isPinkTheme, // 传递主题状态
+                      ),
             ),
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(Icons.delete, size: 12.0), // 调整图标大小
-                onPressed: () => _deleteItem(item),
-              ),
-            ],
-          ),
-        ),
-        Divider(height: 1, color: Colors.grey[300]),
-        if (item.isExpanded && item.children.isNotEmpty)
-          ...item.children
-              .map((child) => _buildDirectoryItem(child))
-              .toList()
-              .map(
-                (childWidget) => Padding(
-                  padding: const EdgeInsets.only(left: 18.0),
-                  child: childWidget,
-                ),
-              ),
-      ],
+        ],
+      ),
     );
-  }
-
-  void _addItem(DirectoryItem? parent) {
-    final newItem = DirectoryItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: '新目录项',
-      level: parent != null ? parent.level + 1 : 0,
-    );
-
-    setState(() {
-      if (parent != null) {
-        _updateItem(
-          parent,
-          parent.copyWith(
-            children: [...parent.children, newItem],
-            isExpanded: true,
-          ),
-        );
-      } else {
-        directoryItems.add(newItem);
-        _saveDirectoryItems(); // 添加这行以保存变更
-      }
-    });
-  }
-
-  void _deleteItem(DirectoryItem item) {
-    setState(() {
-      if (!_removeItemFromParent(directoryItems, item)) {
-        // If item is a root item
-        directoryItems.removeWhere((element) => element.id == item.id);
-      }
-      _saveDirectoryItems(); // 添加这行以保存变更
-    });
-  }
-
-  bool _removeItemFromParent(
-    List<DirectoryItem> items,
-    DirectoryItem itemToRemove,
-  ) {
-    for (var item in items) {
-      if (item.children.any((child) => child.id == itemToRemove.id)) {
-        _updateItem(
-          item,
-          item.copyWith(
-            children:
-                item.children
-                    .where((child) => child.id != itemToRemove.id)
-                    .toList(),
-          ),
-        );
-        return true;
-      }
-      if (_removeItemFromParent(item.children, itemToRemove)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void _toggleExpand(DirectoryItem item) {
-    _updateItem(item, item.copyWith(isExpanded: !item.isExpanded));
-  }
-
-  void _updateTitle(DirectoryItem item, String newTitle) {
-    // ✅ 只更新数据，不强制刷新 UI
-    item.title = newTitle;
-    _saveDirectoryItems(); // 异步保存，避免频繁 setState
-  }
-
-  void _showImportExportMenu() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.download),
-                title: const Text('导出目录'),
-                onTap: _exportDirectory,
-              ),
-              ListTile(
-                leading: const Icon(Icons.upload),
-                title: const Text('导入目录'),
-                onTap: _importDirectory,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _exportDirectory() async {
-    // 弹出对话框让用户输入文件名
-    final fileNameController = TextEditingController(
-      text:
-          'directory_${DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now())}',
-    );
-
-    final fileName = await showDialog<String>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('导出目录'),
-            content: TextField(
-              controller: fileNameController,
-              decoration: const InputDecoration(
-                labelText: '文件名',
-                hintText: '输入导出文件的名称',
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('取消'),
-              ),
-              TextButton(
-                onPressed:
-                    () => Navigator.pop(context, fileNameController.text),
-                child: const Text('确定'),
-              ),
-            ],
-          ),
-    );
-
-    // 如果用户取消操作，fileName将为null
-    if (fileName == null || fileName.isEmpty) return;
-
-    try {
-      // 1. 生成 JSON 数据
-      String fileName =
-          'directory_${DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now())}.json';
-      String content = jsonEncode(
-        directoryItems.map((item) => item.toJson()).toList(),
-      );
-
-      // 2. 保存到临时文件（QQ分享需要文件路径）
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(content);
-
-      // 3. 使用 share_plus 分享文件
-      await Share.shareXFiles(
-        [XFile(file.path)], // 要分享的文件
-        text: '这是导出的目录结构文件', // 可选：附加文本
-        subject: '目录导出', // 可选：分享主题（邮件等场景）
-      );
-
-      // 4. 提示用户
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('已导出并弹出分享选项')));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('导出失败: $e')));
-    }
-  }
-
-  // 修改你的 _importDirectory 方法，使用 SAF 选择文件
-  Future<void> _importDirectory() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any, // 允许选择任何类型文件
-        allowMultiple: false,
-      );
-
-      if (result != null) {
-        PlatformFile file = result.files.first;
-
-        // 优先使用文件的字节数据
-        String content;
-        if (file.bytes != null) {
-          content = String.fromCharCodes(file.bytes!);
-        }
-        // 次选：尝试使用路径
-        else if (file.path != null) {
-          content = await File(file.path!).readAsString();
-        } else {
-          throw Exception("无法获取文件内容");
-        }
-
-        // 解析JSON数据
-        final List<dynamic> jsonList = jsonDecode(content);
-
-        // 清除现有控制器
-        for (var item in directoryItems) {
-          _disposeItemControllers(item);
-        }
-
-        // 更新UI状态
-        setState(() {
-          directoryItems =
-              jsonList.map((json) => DirectoryItem.fromJson(json)).toList();
-        });
-
-        // 保存数据
-        await _saveDirectoryItems();
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('目录导入成功')));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('导入失败: $e')));
-      print("导入错误详情: $e");
-    }
   }
 }
